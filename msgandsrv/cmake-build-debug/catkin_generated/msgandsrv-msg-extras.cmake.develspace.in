@@ -1,0 +1,2 @@
+set(msgandsrv_MESSAGE_FILES "/home/user/catkin_ws/src/msgandsrv/msg/Num.msg")
+set(msgandsrv_SERVICE_FILES "/home/user/catkin_ws/src/msgandsrv/srv/Srv_test.srv")
