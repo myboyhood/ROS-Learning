@@ -9,8 +9,8 @@ from nav_msgs.msg import Odometry
 class Takeoff:
     def __init__(self):
         self.pose = PoseStamped()
-        self.pose.pose.position.x = 2
-        self.pose.pose.position.y = 2
+        self.pose.pose.position.x = 0
+        self.pose.pose.position.y = 0
         self.pose.pose.position.z = 1
 
         self.current_state = State()
@@ -18,7 +18,7 @@ class Takeoff:
 
         self.waypoint_x = 0
         self.waypoint_y = 0
-        self.waypoint_z = 0
+        self.waypoint_z = 1
         self.sequence = 0
 
     def state_cb(self, msg):
@@ -32,7 +32,7 @@ class Takeoff:
         self.pose.pose.position.y = y
         self.pose.pose.position.z = z
 
-    def get_waypoint(self, sequence):
+    def get_waypoint(self, sequence, number_of_points):
 
         point1 = rospy.get_param('/takeoff/waypoint/point1')
         point2 = rospy.get_param('/takeoff/waypoint/point2')
@@ -41,9 +41,13 @@ class Takeoff:
         point5 = rospy.get_param('/takeoff/waypoint/point5')
         waypoints = [point1, point2, point3, point4, point5]
 
+        sequence = min(sequence, number_of_points)
         self.waypoint_x = waypoints[sequence-1][0]
         self.waypoint_y = waypoints[sequence-1][1]
         self.waypoint_z = waypoints[sequence-1][2]
+
+        print waypoints
+        print "reaching setpoint:" + str([self.waypoint_x, self.waypoint_y, self.waypoint_z])
 
     def uav_takeoff(self):
         rospy.init_node('takeoff', anonymous=True)
@@ -103,21 +107,23 @@ class Takeoff:
                         rospy.loginfo("Vehicle armd")
                     last_request = rospy.get_rostime()
 
-            print self.current_state.mode
-            error_x = abs(self.current_odometry.pose.pose.position.x - self.pose.pose.position.x)
-            error_y = abs(self.current_odometry.pose.pose.position.y - self.pose.pose.position.y)
+            # tf axis has problem ,odo_x for setpoint_y and odo_y for setpoint_x
+            error_x = abs(self.current_odometry.pose.pose.position.y - self.pose.pose.position.x)
+            error_y = abs(self.current_odometry.pose.pose.position.x - self.pose.pose.position.y)
             error_z = abs(-self.current_odometry.pose.pose.position.z - self.pose.pose.position.z)
-            error_sum = error_x + error_y + error_z
+            error_sum = abs(error_x) + abs(error_y) + abs(error_z)
 
             if error_sum < 0.5:
-                rospy.sleep(3.0)
+                print "get point"+" "+str([self.pose.pose.position.x, self.pose.pose.position.y, self.pose.pose.position.z])
+
                 self.sequence += 1
-                self.get_waypoint(self.sequence)
+                self.get_waypoint(self.sequence, 5)
                 self.set_newpoint(self.waypoint_x, self.waypoint_y, self.waypoint_z)
-                local_pose_pub.publish(self.pose)
+                for n in range(60): # delay 3.0s
+                    local_pose_pub.publish(self.pose)
+                    rate.sleep()
             elif error_sum >= 0.5:
                 local_pose_pub.publish(self.pose)
-
 
             rate.sleep()
 
