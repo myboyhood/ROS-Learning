@@ -1,0 +1,126 @@
+# 目的：
+把iris飞机和turtlebot3小车加载到gazebo，运行写好的iris飞机路径飞行程序和小车运动控制程序，实现车对飞机的跟踪
+***
+
+# 方法一：（这样步骤是没问题的）
+## 切换到固件目录 
+cd ~/src/Firmware 
+## 启动gazebo仿真 
+make posix_sitl_default gazebo
+## 启动MAVROS,链接到本地ROS 
+roslaunch mavros px4.launch fcu_url:="udp://:14540@127.0.0.1:14557" 
+## 运行外部控制程序 
+rosrun offboard offboard_node
+
+
+## 但我无法使用特定的.world
+
+# 方法二：步骤（我想采用的）
+于是我想采用
+```
+roslaunch px4 mavros_posix_sitl.launch
+```
+
+## 但会出现如下[INFO]:
+[ INFO] [1565081990.781344646, 10.368000000]: HP: requesting home position
+[ WARN] [1565081991.782735968, 11.368000000]: PR: request list timeout, retries left 2
+[ WARN] [1565081992.784051459, 12.368000000]: PR: request list timeout, retries left 1
+[ WARN] [1565081993.784268529, 13.368000000]: PR: request list timeout, retries left 0
+[ INFO] [1565081995.787574806, 15.368000000]: WP: mission received
+[ INFO] [1565082000.793245631, 20.368000000]: HP: requesting home position
+[ WARN] [1565082010.435929252, 30.000000000]: GP: No GPS fix
+[ INFO] [1565082010.803416894, 30.368000000]: HP: requesting home position
+[ INFO] [1565082020.815363049, 40.368000000]: HP: requesting home position
+
+我rqt看topic,相对于方法一，
+### 1.法二的/mavros/home_position/home是unknown，
+### 2.法二的/diagnostics/
+ level: 2
+    name: "mavros: GPS"
+    message: "No satellites"
+    hardware_id: "udp://:14540@127.0.0.1:14557"
+    values: 
+      - 
+        key: "Satellites visible"
+        value: "0"
+      - 
+        key: "Fix type"
+        value: "0"
+      - 
+        key: "EPH (m)"
+        value: "0.00"
+      - 
+        key: "EPV (m)"
+        value: "0.00"
+  - 
+    level: 1
+    name: "mavros: Heartbeat"
+    message: "Frequency too high."
+    hardware_id: "udp://:14540@127.0.0.1:14557"
+    values: 
+      - 
+        key: "Heartbeats since startup"
+        value: "168881"
+      - 
+        key: "Frequency (Hz)"
+        value: "595.400000"
+      - 
+        key: "Vehicle type"
+        value: "Quadrotor"
+      - 
+        key: "Autopilot type"
+        value: "PX4 Autopilot"
+      - 
+        key: "Mode"
+        value: "MANUAL"
+      - 
+        key: "System status"
+        value: "Standby"
+  - 
+## 法一的正确/diagnostics/
+level: 0
+    name: "mavros: GPS"
+    message: "3D fix"
+    hardware_id: "udp://:14540@127.0.0.1:14557"
+    values: 
+      - 
+        key: "Satellites visible"
+        value: "10"
+      - 
+        key: "Fix type"
+        value: "3"
+      - 
+        key: "EPH (m)"
+        value: "0.00"
+      - 
+        key: "EPV (m)"
+        value: "0.00"
+  - 
+    level: 0
+    name: "mavros: Heartbeat"
+    message: "Normal"
+    hardware_id: "udp://:14540@127.0.0.1:14557"
+    values: 
+      - 
+        key: "Heartbeats since startup"
+        value: "16"
+      - 
+        key: "Frequency (Hz)"
+        value: "0.999958"
+      - 
+        key: "Vehicle type"
+        value: "Quadrotor"
+      - 
+        key: "Autopilot type"
+        value: "PX4 Autopilot"
+      - 
+        key: "Mode"
+        value: "AUTO.LOITER"
+      - 
+        key: "System status"
+        value: "Standby"
+于是我想其实两种方法核心都是用px4.launch,但为什么[INFO]如此不同,
+但是法一在/mavros/state中 key: "Mode" value: "AUTO.LOITER"我可以通过service.call切换成OFFBOARD，然后一切正常
+然而法二在/mavros/state中 key: "Mode" value: "MANUAL"，我service.call根本不管用。
+网上有的说把.launch中"est" "ekf2" 改成"est" "lpe"，但还是没用。
+
